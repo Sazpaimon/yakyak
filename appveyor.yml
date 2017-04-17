@@ -8,7 +8,6 @@
   configuration: Release
   deploy:
     provider: AzureCS
-    ...
 
 # configuration for all branches starting from "dev-"
 # build in Debug mode and deploy locally for testing
@@ -20,7 +19,6 @@
   configuration: Debug
   deploy:
     provider: Local
-    ...
 
 # "fall back" configuration for all other branches
 # no "branches" section defined
