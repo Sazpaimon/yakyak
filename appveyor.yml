@@ -1,27 +1,16 @@
-# configuration for "master" branch
-# build in Release mode and deploy to Azure
--
-  branches:
-    only:
-      - master
+environment:
+  nodejs_version: "6"
 
-  configuration: Release
-  deploy:
-    provider: AzureCS
+platform: x64
 
-# configuration for all branches starting from "dev-"
-# build in Debug mode and deploy locally for testing
--
-  branches:
-    only:
-      - /dev-.*/
+install:
+  - ps: Install-Product node $env:nodejs_version x64
+  - npm install
 
-  configuration: Debug
-  deploy:
-    provider: Local
+test_script:
+  - npm test
 
-# "fall back" configuration for all other branches
-# no "branches" section defined
-# do not deploy at all
--
-  configuration: Debug
+build: off
+
+build_script:
+  - npm run release -- --ia32 --x64 --prerelease

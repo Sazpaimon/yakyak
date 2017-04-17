@@ -56,8 +56,16 @@
       "target": [
         "AppImage",
         "deb",
-        "rpm"
-      ]
+        "rpm",
+        "tar.gz"
+      ],
+      "executableName": "yakyak",
+      "desktop": {
+        "StartupNotify": "true",
+        "Keywords": "hangouts;messenger",
+        "Categories": "Network;InstantMessaging",
+        "X-GNOME-UsesNotifications": "true"
+      }
     },
     "win": {
       "icon": "src/icons/icon.ico",
@@ -67,7 +75,8 @@
       ]
     },
     "nsis": {
-      "oneClick": false
+      "oneClick": false,
+      "artifactName": "${productName}-${version}-setup-${arch}.${ext}"
     }
   },
   "dependencies": {
