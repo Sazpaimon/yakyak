@@ -20,5 +20,6 @@ notifications:
 dist: trusty
 sudo: false
 
-script:
-  npm run release
+after_success:
+  # Only build releases on tags
+  - if [ ! -z "$TRAVIS_TAG" ]; then npm run release -- --prerelease; fi
