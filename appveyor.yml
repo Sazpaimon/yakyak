@@ -1,27 +1,17 @@
-# configuration for "master" branch
-# build in Release mode and deploy to Azure
--
-  branches:
-    only:
-      - master
+environment:
+  nodejs_version: "6"
 
-  configuration: Release
-  deploy:
-    provider: AzureCS
+install:
+  - ps: Install-Product node $env:nodejs_version
+  - npm install
 
-# configuration for all branches starting from "dev-"
-# build in Debug mode and deploy locally for testing
--
-  branches:
-    only:
-      - /dev-.*/
+test_script:
+  - npm test
 
-  configuration: Debug
-  deploy:
-    provider: Local
+build: off
 
-# "fall back" configuration for all other branches
-# no "branches" section defined
-# do not deploy at all
--
-  configuration: Debug
+on_success:
+  - ps: >-
+      if ($env:APPVEYOR_REPO_TAG -eq "true") {
+        npm run release -- --prerelease
+      }
