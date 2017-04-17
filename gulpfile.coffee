@@ -7,18 +7,11 @@ fs         = require 'fs'
 gutil      = require 'gulp-util'
 sourcemaps = require 'gulp-sourcemaps'
 install    = require 'gulp-install'
-{execSync} = require 'child_process'
 concat     = require 'gulp-concat'
 autoReload = require 'gulp-auto-reload'
 changed    = require 'gulp-changed'
 rename     = require 'gulp-rename'
-packager   = require 'electron-packager'
 filter     = require 'gulp-filter'
-Q          = require 'q'
-Stream     = require 'stream'
-spawn      = require('child_process').spawn
-# running tasks in sequence
-runSequence = require('run-sequence')
 
 #
 #
@@ -29,8 +22,6 @@ outui  = outapp + '/ui'
 
 paths =
     deploy:  './dist/'
-    README:  './README.md'
-    package: './package.json'
     coffee:  './src/**/*.coffee'
     html:    './src/**/*.html'
     images:  './src/**/images/*.*'
@@ -43,55 +34,6 @@ paths =
     fonts:   ['./src/**/*.eot', './src/**/*.svg',
               './src/**/*.ttf', './src/**/*.woff',
               './src/**/*.woff2']
-
-#
-#
-# Options for packaging app
-#
-outdeploy = path.join __dirname, 'dist'
-
-platformOpts = ['linux', 'darwin', 'win32']
-archOpts =     ['x64','ia32']
-
-json = JSON.parse(fs.readFileSync('./package.json'))
-
-deploy_options = {
-    dir: path.join __dirname, 'app'
-    asar: false
-    icon: path.join __dirname, 'src', 'icons', 'icon'
-    out: outdeploy
-    overwrite: true
-    'app-bundle-id': 'com.github.yakyak'
-    win32metadata: {
-        CompanyName: 'Yakyak'
-        ProductName: 'Yakyak'
-        OriginalFilename: 'Yakyak.exe'
-        FileDescription: 'Yakyak'
-        InternalName: 'Yakyak.exe'
-        FileVersion: "#{json.version}"
-        ProductVersion: "#{json.version}"
-    }
-    'osx-sign': true
-    arch:     archOpts.join ','
-    platform: platformOpts.join ','
-}
-
-#
-#
-# End of options
-
-# setup package stuff (README, package.json)
-gulp.task 'package', ->
-    gulp.src paths.README
-#        .pipe changed outapp
-        .pipe gulp.dest outapp
-
-    # install runtime deps
-    gulp.src paths.package
-#        .pipe changed outapp
-        .pipe gulp.dest outapp
-        .pipe install(production:true)
-
 
 # compile coffeescript
 gulp.task 'coffee', ->
@@ -200,195 +142,10 @@ gulp.task 'reloader', ->
 gulp.task 'clean', (cb) ->
     rimraf outapp, cb
 
-gulp.task 'default', ['package', 'coffee', 'html', 'images', 'media',
+gulp.task 'default', ['coffee', 'html', 'images', 'media',
                       'locales', 'icons', 'less', 'fontello']
 
 gulp.task 'watch', ['default', 'reloader', 'html'], ->
     # watch to rebuild
     sources = (v for k, v of paths)
     gulp.watch sources, ['default']
-
-#
-#
-#
-# Deployment related tasks
-
-#
-#
-buildDeployTask = (platform, arch) ->
-    # create a task per platform
-    taskname = "deploy:#{platform}-#{arch}"
-    tasknameNoDep = "#{taskname}:nodep"
-    # set internal task with _ (does not have dependencies)
-    gulp.task tasknameNoDep, ()->
-        deploy platform, arch
-    # set task with dependencies
-    gulp.task taskname, (cb) ->
-      runSequence 'default', tasknameNoDep, cb
-    #
-    tasknameNoDep
-
-#
-# task to deploy all
-allNames = []
-#
-# create tasks for different platforms and architectures supported
-platformOpts.map (plat) ->
-    names = []
-    archOpts.map (arch) ->
-        # create a task per platform/architecture
-        taskName = buildDeployTask(plat, arch)
-        names.push taskName
-        allNames.push taskName
-    #
-    # create arch-independet task
-    gulp.task "deploy:#{plat}", (cb) ->
-      # add callback to arguments
-      names.push cb
-      runSequence 'default', names...
-    #
-gulp.task 'deploy', (cb)->
-    allNames.push cb
-    runSequence 'default', allNames...
-
-zipIt = (folder, filePrefix, done) ->
-    ext = 'zip'
-    zipName = path.join outdeploy, "#{filePrefix}.#{ext}"
-    folder = path.basename folder
-    #
-    args = ['-r', '-q', '-y', '-X', zipName, folder]
-    opts = {
-        cwd: outdeploy
-        stdio: [0, 1, 'pipe']
-    }
-    compressIt('zip', args, opts, zipName, done)
-
-tarIt = (folder, filePrefix, done) ->
-    ext = 'tar.gz'
-    zipName = path.join outdeploy, "#{filePrefix}.#{ext}"
-    folder = path.basename folder
-    #
-    args = ['-czf', zipName, folder]
-    opts = {
-        cwd: outdeploy
-        stdio: [0, 1, 'pipe']
-    }
-    compressIt('tar', args, opts, zipName, done)
-
-compressIt = (cmd, args, opts, zipName, done) ->
-    #
-    # create child process
-    child = spawn cmd
-    , args
-    , opts
-    # log all errors
-    child.on 'error', (err) ->
-        console.log 'Error: ' + err
-        process.exit(1)
-    # show err
-    child.on 'exit', (code) ->
-        if code == 0
-            console.log "Created archive (#{zipName})"
-            done()
-        else
-            console.log "Possible problem with archive #{zipName} " +
-                "-- (exit with #{code})"
-            done()
-            process.exit(1)
-
-#
-#
-deploy = (platform, arch) ->
-    deferred = Q.defer()
-    opts = deploy_options
-    opts.platform = platform
-    opts.arch = arch
-    #
-    # restriction darwin won't compile ia32
-    if platform == 'darwin' && arch == 'ia32'
-        deferred.resolve()
-        deferred.promise
-    #
-    # necessary to add a callback to pipe (which is used to signal end of task)
-    gulpCallback = (obj) ->
-        stream = new Stream.Transform({objectMode: true})
-        stream._transform = (file, unused, callback) ->
-            obj()
-            callback(null, file)
-        stream
-    #
-    # package the app and create a zip
-    packOpts = opts
-    if platform == 'darwin'
-        packOpts.name = 'YakYak'
-    packager packOpts, (err, appPaths) ->
-        if err?
-            console.log ('Error: ' + err) if err?
-        else if appPaths?.length > 0
-            if process.env.NO_ZIP
-                return deferred.resolve()
-            json = JSON.parse(fs.readFileSync('./package.json'))
-            zippath = "#{appPaths[0]}/"
-            if platform == 'darwin'
-                fileprefix = "yakyak-#{json.version}-osx"
-            else
-                fileprefix = "yakyak-#{json.version}-#{platform}-#{arch}"
-
-            if platform == 'linux'
-                tarIt zippath, fileprefix, -> deferred.resolve()
-            else
-                zipIt zippath, fileprefix, -> deferred.resolve()
-    deferred.promise
-
-["ia32", "x64"].forEach (arch) ->
-    ['deb', 'rpm'].forEach (target) ->
-        gulp.task 'deploy:linux-' + arch + ':' + target, (done) ->
-            if arch is 'ia32'
-                archName = 'i386'
-            else if target is 'deb'
-                archName = 'amd64'
-            else
-                archName = 'x86_64'
-
-            packageName = json.name + '-VERSION-linux-ARCH.' + target
-            iconArgs = [16, 32, 48, 128, 256, 512].map (size) ->
-                if size < 100
-                    src = "0#{size}"
-                else
-                    src = size
-                "./src/icons/icon_#{src}.png=/usr/share/icons/hicolor/#{size}x#{size}/apps/#{json.name}.png"
-            fpmArgs = [
-                '-s', 'dir'
-                '-t', target
-                '--architecture', archName
-                '--rpm-os', 'linux'
-                '--name', json.name
-                '--force' # Overwrite existing files
-                '--license', json.license
-                '--description', json.description
-                '--url', json.homepage
-                '--maintainer', json.author
-                '--vendor', json.authorName
-                '--version', json.version
-                '--package', "./dist/#{packageName}"
-                '--after-install', './resources/linux/after-install.sh'
-                '--after-remove', './resources/linux/after-remove.sh'
-                "./dist/#{json.name}-linux-#{arch}/.=/opt/#{json.name}"
-                "./resources/linux/app.desktop=/usr/share/applications/#{json.name}.desktop"
-            ].concat iconArgs
-
-            child = spawn 'fpm', fpmArgs
-            # log all errors
-            child.on 'error', (err) ->
-                console.log 'Error: ' + err
-                process.exit(1)
-            # show err
-            child.on 'exit', (code) ->
-                if code == 0
-                    console.log "Created #{target} (#{packageName})"
-                    done()
-                else
-                    console.log "Possible problem with #{target} #{packageName} " +
-                        "-- (exit with #{code})"
-                    done()
-                    process.exit(1)

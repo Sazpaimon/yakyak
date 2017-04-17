@@ -2,26 +2,14 @@
   "name": "yakyak",
   "version": "1.4.3",
   "description": "Chat client for Google Hangouts",
-  "main": "main.js",
+  "main": "app/main.js",
   "scripts": {
     "start": "gulp && electron app",
     "dev": "electron app --debug",
     "gulp": "gulp",
     "electron": "electron",
     "test": "mocha",
-    "deploy": "gulp deploy",
-    "deploy:linux": "gulp deploy:linux",
-    "deploy:win32": "gulp deploy:win32",
-    "deploy:darwin": "gulp deploy:darwin",
-    "deploy:linux-x64": "gulp deploy:linux-x64",
-    "deploy:linux-x64:deb": "gulp deploy:linux-x64:deb",
-    "deploy:linux-x64:rpm": "gulp deploy:linux-x64:rpm",
-    "deploy:linux-ia32": "gulp deploy:linux-ia32",
-    "deploy:linux-ia32:deb": "gulp deploy:linux-ia32:deb",
-    "deploy:linux-ia32:rpm": "gulp deploy:linux-ia32:rpm",
-    "deploy:win32-x64": "gulp deploy:win32-x64",
-    "deploy:win32-ia32": "gulp deploy:win32-ia32",
-    "deploy:darwin-x64": "gulp deploy:darwin-x64"
+    "release": "gulp && build"
   },
   "repository": {
     "type": "git",
@@ -38,6 +26,50 @@
     "url": "https://github.com/yakyak/yakyak/issues"
   },
   "homepage": "https://github.com/yakyak/yakyak",
+  "build": {
+    "appId": "com.github.yakyak",
+    "productName": "Yakyak",
+    "files": [
+      "app",
+      "node_modules"
+    ],
+    "mac": {
+      "category": "public.app-category.social-networking",
+      "icon": "src/icons/icon.icns"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 110,
+          "y": 150
+        },
+        {
+          "x": 240,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "linux": {
+      "maintainer": "Martin Algesten",
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ]
+    },
+    "win": {
+      "icon": "src/icons/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false
+    }
+  },
   "dependencies": {
     "auto-launch": "^5.0.1",
     "autosize": "^3.0.8",
@@ -57,8 +89,8 @@
     "chai": "^3.2.0",
     "coffee-script": "^1.9.2",
     "devtron": "^1.4.0",
-    "electron-packager": "^8.3.0",
     "electron": "^1.4.10",
+    "electron-builder": "next",
     "gulp": "^3.9.0",
     "gulp-auto-reload": "0.1.0",
     "gulp-changed": "^1.2.1",
