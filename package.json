@@ -70,7 +70,6 @@
     "win": {
       "icon": "src/icons/icon.ico",
       "target": [
-        "nsis",
         "portable"
       ]
     },
